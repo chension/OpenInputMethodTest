@@ -73,6 +73,12 @@ public class SoftKey {
 		this.mNextTopKey.index = index;
 	}
 
+	public void cleanSaveNextTopSoftkey() {
+		this.mNextTopKey.key = null;
+		this.mNextTopKey.row = 0;
+		this.mNextTopKey.index = 0;
+	}
+
 	public SaveSoftKey getNextBottomKey() {
 		return mNextBottomKey;
 	}

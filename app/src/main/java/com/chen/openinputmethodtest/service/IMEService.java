@@ -30,6 +30,7 @@ import com.chen.openinputmethodtest.keyboard.IPinyinDecoderService;
 import com.chen.openinputmethodtest.keyboard.InputModeSwitcher;
 import com.chen.openinputmethodtest.keyboard.PinyinDecoderService;
 import com.chen.openinputmethodtest.keyboard.SkbContainer;
+import com.chen.openinputmethodtest.keyboard.SoftKey;
 import com.chen.openinputmethodtest.utils.MeasureHelper;
 import com.chen.openinputmethodtest.utils.OPENLOG;
 import com.open.inputmethod.R;
@@ -221,7 +222,7 @@ public class IMEService extends InputMethodService {
      *
      * @param showComposingView 是否显示输入的拼音View
      */
-    private void showCandidateWindow(boolean showComposingView) {
+    public void showCandidateWindow(boolean showComposingView) {
         Log.d(TAG, "Candidates window is shown. Parent = "
                 + mCandidatesContainer);
 
@@ -339,7 +340,56 @@ public class IMEService extends InputMethodService {
             OPENLOG.D(TAG, "onKeyDown isImeServiceStop keyCode:" + keyCode);
             return super.onKeyDown(keyCode, event);
         }
-        return mSkbContainer != null && mSkbContainer.onSoftKeyDown(keyCode, event) || super.onKeyDown(keyCode, event);
+
+        //在这里对softkeyboardview和candidateview的焦点进行控制
+        OPENLOG.D(TAG,":::"+(null != mCandidatesContainer && mCandidatesContainer.isShown()
+                && !mDecInfo.isCandidatesListEmpty()));
+        if (mSkbContainer.isCanProcess()){
+            return mSkbContainer != null && mSkbContainer.onSoftKeyDown(keyCode, event);
+        }else if (mCandidatesContainer.isCanProcess()){
+            return processCandidateKey(keyCode);
+        }else {
+            return super.onKeyDown(keyCode, event);
+        }
+    }
+
+    private boolean processCandidateKey(int keyCode) {
+        if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER) {
+            // 选择当前高亮的候选词
+            chooseCandidate(-1);
+        }
+
+        if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+            // 高亮位置向上一个候选词移动或者移动到上一页的最后一个候选词的位置。
+            mCandidatesContainer.activeCurseBackward();
+        }
+
+        if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+            // 高亮位置向下一个候选词移动或者移动到下一页的第一个候选词的位置。
+            mCandidatesContainer.activeCurseForward();
+        }
+
+        if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+            // 到上一页候选词
+            mCandidatesContainer.pageBackward(false, true);
+        }
+
+        if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+            // 到下一页候选词
+//            mCandidatesContainer.pageForward(false, true);
+            mCandidatesContainer.setCanProcess(false);
+            mSkbContainer.setCanProcess(true);
+            mCandidatesContainer.enableActiveHighlight(false);
+            SoftKey nSelectSoftKey = mSkbContainer.mSoftKeyboardView.getSoftKeyboard().getSelectSoftKey();
+            nSelectSoftKey.setKeySelected(true);
+        }
+
+        // 在预报状态下的删除键处理
+        if (keyCode == KeyEvent.KEYCODE_DEL
+                && ImeState.STATE_PREDICT == mImeState) {
+            resetToIdleState(false);
+        }
+        return true;
     }
 
     @Override

@@ -154,6 +154,15 @@ public class CandidatesContainer extends RelativeLayout implements View.OnTouchL
      */
     private int mCurrentPage = -1;
 
+    private boolean mIsCanProcess=false;
+
+    public void setCanProcess(boolean canProcess) {
+        mIsCanProcess = canProcess;
+    }
+    public boolean isCanProcess() {
+        return mIsCanProcess;
+    }
+
     public CandidatesContainer(Context context, AttributeSet attrs) {
         super(context, attrs);
         this.mContext=context;
@@ -442,7 +451,7 @@ public class CandidatesContainer extends RelativeLayout implements View.OnTouchL
         } else if (event.getAction() == MotionEvent.ACTION_UP) {
             // 设置候选词视图高亮活动的候选词。
             Candidateview cv = (Candidateview) mFlipper.getCurrentView();
-            cv.enableActiveHighlight(true);
+            cv.enableActiveHighlight(isCanProcess());
         }
 
         return false;
@@ -561,7 +570,7 @@ public class CandidatesContainer extends RelativeLayout implements View.OnTouchL
     public void onAnimationEnd(Animation animation) {
         if (!mLeftArrowBtn.isPressed() && !mRightArrowBtn.isPressed()) {
             Candidateview cv = (Candidateview) mFlipper.getCurrentView();
-            cv.enableActiveHighlight(true);
+            cv.enableActiveHighlight(isCanProcess());
         }
     }
 

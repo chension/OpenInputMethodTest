@@ -40,5 +40,9 @@
     <string name="enter_next">Next</string><!-- 下一个 -->
     <string name="enter_text">Enter</string><!-- 完成 -->
     <string name="enter_mulit_line_text">Enter</string><!-- 完成 -->
+
+    <string name="english_mode">EN</string><!-- 英文 -->
+    <string name="chinese_mode">CN</string><!-- 中文 -->
+
     
 </resources>

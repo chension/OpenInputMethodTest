@@ -100,12 +100,12 @@
 
         <!-- 切换到拼音键盘 -->
         <toggle_key key_code="@string/toggle_keycode_pinyin"
-                    key_text_size="@dimen/px30" >
+                    key_text_size="@dimen/px28" >
             <state
-                key_label="英文"
+                key_label="@string/english_mode"
                 state_id="@string/toggle_keycode_pinyin_1" />
             <state
-                key_label="中文"
+                key_label="@string/chinese_mode"
                 state_id="@string/toggle_keycode_pinyin_2" />
         </toggle_key>
 

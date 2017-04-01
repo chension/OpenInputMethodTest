@@ -8,4 +8,7 @@
     <string name="enter_next">下一个</string><!-- 下一个 -->
     <string name="enter_text">完成</string><!-- 完成 -->
     <string name="enter_mulit_line_text">回车</string><!-- 完成 -->
+
+    <string name="english_mode">英文</string><!-- 英文 -->
+    <string name="chinese_mode">中文</string><!-- 中文 -->
 </resources>

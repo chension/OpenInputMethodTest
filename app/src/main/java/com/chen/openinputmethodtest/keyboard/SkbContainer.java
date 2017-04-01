@@ -42,13 +42,21 @@ public class SkbContainer extends RelativeLayout {
     }
 
     private InputModeSwitcher mInputModeSwitcher;
-    private SoftKeyboardView  mSoftKeyboardView; // 主要的子软键盘.
+    public SoftKeyboardView  mSoftKeyboardView; // 主要的子软键盘.
     private SoftKeyboardView  mPopupKeyboardView; // 弹出的软键盘.
     private int               mSkbLayout;
     private Context           mContext;
     private IMEService        mService;
     private boolean           mLastCandidatesShowing;
 
+    private boolean mIsCanProcess=true;
+
+    public void setCanProcess(boolean canProcess) {
+        mIsCanProcess = canProcess;
+    }
+    public boolean isCanProcess() {
+        return mIsCanProcess;
+    }
 
     /**
      * 初始化.
@@ -146,7 +154,7 @@ public class SkbContainer extends RelativeLayout {
         mInputModeSwitcher.getToggleStates().mQwertyUpperCase = softKeyboard.isQwertyUpperCase();
         mInputModeSwitcher.getToggleStates().mQwerty = softKeyboard.isQwerty();
         mInputModeSwitcher.getToggleStates().mPageState = InputModeSwitcher.TOGGLE_KEYCODE_PAGE_1;
-        mInputModeSwitcher.getToggleStates().mQwertyPinyin = false;
+        mInputModeSwitcher.getToggleStates().mQwertyPinyin = mInputModeSwitcher.isChineseText();
         // 这样可以用于切换.(反位)
         softKeyboard.setQwertyUpperCase(!softKeyboard.isQwertyUpperCase());
         // 更新状态切换.
@@ -190,6 +198,15 @@ public class SkbContainer extends RelativeLayout {
             OPENLOG.D(TAG, "setKeyCodeEnter isUserKey keyCode:" + softKeyCode);
             mInputModeSwitcher.switchModeForUserKey(softKey);
             updateInputMode(softKey); // 大/小 写切换.
+            //切换后把candidateview消失
+            if (null != mService.mCandidatesContainer && mService.mCandidatesContainer.isShown()
+                    && !mService.mDecInfo.isCandidatesListEmpty()){
+                OPENLOG.D(TAG, "setKeyCodeEnter isUserKey keyCode:" + softKeyCode);
+                mService.mDecInfo.reset();
+                if (null != mService.mCandidatesContainer && mService.mCandidatesContainer.isShown()) {
+                    mService.showCandidateWindow(false);
+                }
+            }
             return true;
         }
         /*
@@ -243,7 +260,21 @@ public class SkbContainer extends RelativeLayout {
 		 */
         switch (softKeyCode) {
             case KeyEvent.KEYCODE_DEL: // 删除 67
-                mService.getCurrentInputConnection().deleteSurroundingText(1, 0);
+                if (null != mService.mCandidatesContainer && mService.mCandidatesContainer.isShown()
+                        && !mService.mDecInfo.isCandidatesListEmpty()){
+                    if (mImeState == IMEService.ImeState.STATE_IDLE
+                            || mImeState == IMEService.ImeState.STATE_APP_COMPLETION) {
+                        simulateKeyEventDownUp(softKeyCode);
+                    } else if (mImeState == IMEService.ImeState.STATE_INPUT) {
+                        mService.mDecInfo.prepareDeleteBeforeCursor();
+                        mService.chooseAndUpdate(-1);
+                        mService.mCandidatesContainer.enableActiveHighlight(false);
+                    } else if (mImeState == IMEService.ImeState.STATE_PREDICT) {
+                        mService.resetToIdleState(false);
+                    }
+                }else{
+                    mService.getCurrentInputConnection().deleteSurroundingText(1, 0);
+                }
                 break;
             case KeyEvent.KEYCODE_ENTER: // 回车 66
                 if (softKey instanceof ToggleSoftKey) {
@@ -319,6 +350,7 @@ public class SkbContainer extends RelativeLayout {
             case KeyEvent.KEYCODE_DPAD_DOWN: // 下
                 mSoftKeyboardView.setSoftKeyPress(false);
                 actionForKeyEvent(keyCode); // 按键移动.
+                break;
             default:
                 // 处理键盘按键.
                 return false;
@@ -357,7 +389,7 @@ public class SkbContainer extends RelativeLayout {
      * 根据 上，下，左，右 来绘制按键位置.
      */
     public boolean actionForKeyEvent(int direction) {
-        return mSoftKeyboardView != null && mSoftKeyboardView.moveToNextKey(direction);
+        return mSoftKeyboardView != null && mSoftKeyboardView.moveToNextKey(direction,mService.mCandidatesContainer,this,mService.mDecInfo);
     }
 
     private static final int LOG_PRESS_DELAYMILLIS = 200;
@@ -424,6 +456,7 @@ public class SkbContainer extends RelativeLayout {
 
             // 对输入的拼音进行查询
             mService.chooseAndUpdate(-1);
+            mService.mCandidatesContainer.enableActiveHighlight(false);
             return true;
         } else if (keyCode == KeyEvent.KEYCODE_DEL) {
 //            if (!realAction)
@@ -437,11 +470,6 @@ public class SkbContainer extends RelativeLayout {
 
             // 发送 ENTER 键给 EditText
             mService.sendKeyChar('\n');
-            return true;
-        } else if (keyCode == KeyEvent.KEYCODE_ALT_LEFT
-                || keyCode == KeyEvent.KEYCODE_ALT_RIGHT
-                || keyCode == KeyEvent.KEYCODE_SHIFT_LEFT
-                || keyCode == KeyEvent.KEYCODE_SHIFT_RIGHT) {
             return true;
         }
 //        else if (keyChar != 0 && keyChar != '\t') {
@@ -477,7 +505,9 @@ public class SkbContainer extends RelativeLayout {
 //                return true;
 
             // 添加输入的拼音，然后进行词库查询，或者删除输入的拼音指定的字符或字符串，然后进行词库查询。
-            return mService.processSurfaceChange(keyChar, keyCode);
+            boolean nProcessSurfaceChange = mService.processSurfaceChange(keyChar, keyCode);
+            mService.mCandidatesContainer.enableActiveHighlight(false);
+            return nProcessSurfaceChange;
         } else if (keyChar == ',' || keyChar == '.') {
 //            if (!realAction)
 //                return true;
@@ -488,34 +518,7 @@ public class SkbContainer extends RelativeLayout {
                     IMEService.ImeState.STATE_IDLE);
             return true;
 
-        } else if (keyCode == KeyEvent.KEYCODE_DPAD_UP
-                || keyCode == KeyEvent.KEYCODE_DPAD_DOWN
-                || keyCode == KeyEvent.KEYCODE_DPAD_LEFT
-                || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
-//            if (!realAction)
-//                return true;
-
-            if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
-                // 高亮位置向上一个候选词移动或者移动到上一页的最后一个候选词的位置。
-                mService.mCandidatesContainer.activeCurseBackward();
-            } else if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
-                // 高亮位置向下一个候选词移动或者移动到下一页的第一个候选词的位置。
-                mService.mCandidatesContainer.activeCurseForward();
-            } else if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
-                // If it has been the first page, a up key will shift
-                // the state to edit composing string.
-                // 到上一页候选词
-                if (!mService.mCandidatesContainer.pageBackward(false, true)) {
-                    mService.mCandidatesContainer.enableActiveHighlight(false);
-                    mService.changeToStateComposing(true);
-                    mService.updateComposingText(true);
-                }
-            } else if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
-                // 到下一页候选词
-                mService.mCandidatesContainer.pageForward(false, true);
-            }
-            return true;
-        } else if (keyCode >= KeyEvent.KEYCODE_1
+        }else if (keyCode >= KeyEvent.KEYCODE_1
                 && keyCode <= KeyEvent.KEYCODE_9) {
 //            if (!realAction)
 //                return true;
@@ -532,13 +535,6 @@ public class SkbContainer extends RelativeLayout {
             }
             return true;
         } else if (keyCode == KeyEvent.KEYCODE_ENTER) {
-//            if (!realAction)
-//                return true;
-//            if (mInputModeSwitcher.isEnterNoramlState()) {
-//                // 把输入的拼音字符串发送给EditText
-//                mService.commitResultText(mService.mDecInfo.getOrigianlSplStr().toString());
-//                mService.resetToIdleState(false);
-//            } else {
                 // 把高亮的候选词发送给EditText
                 mService.commitResultText(mService.mDecInfo
                         .getCurrentFullSent(mService.mCandidatesContainer
@@ -583,29 +579,10 @@ public class SkbContainer extends RelativeLayout {
             mService.mDecInfo.addSplChar((char) keyChar, true);
             // 对输入的拼音进行查询。
             mService.chooseAndUpdate(-1);
+            mService.mCandidatesContainer.enableActiveHighlight(false);
         } else if (keyChar == ',' || keyChar == '.') {
             // 发送 '\uff0c' 或者 '\u3002' 给EditText
             mService.inputCommaPeriod("", keyChar, true, IMEService.ImeState.STATE_IDLE);
-        } else if (keyCode == KeyEvent.KEYCODE_DPAD_UP
-                || keyCode == KeyEvent.KEYCODE_DPAD_DOWN
-                || keyCode == KeyEvent.KEYCODE_DPAD_LEFT
-                || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
-            if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
-                // 高亮位置向上一个候选词移动或者移动到上一页的最后一个候选词的位置。
-                mService.mCandidatesContainer.activeCurseBackward();
-            }
-            if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
-                // 高亮位置向下一个候选词移动或者移动到下一页的第一个候选词的位置。
-                mService.mCandidatesContainer.activeCurseForward();
-            }
-            if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
-                // 到上一页候选词
-                mService.mCandidatesContainer.pageBackward(false, true);
-            }
-            if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
-                // 到下一页候选词
-                mService.mCandidatesContainer.pageForward(false, true);
-            }
         } else if (keyCode == KeyEvent.KEYCODE_DEL) {
             mService.resetToIdleState(false);
         } else if (keyCode == KeyEvent.KEYCODE_BACK) {
@@ -656,11 +633,7 @@ public class SkbContainer extends RelativeLayout {
             if (!mService.mDecInfo.selectionFinished()) {
                 mService.changeToStateInput(true);
             }
-        } else if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT
-                || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
-            // 移动候选词的光标
-            mService.mComposingView.moveCursor(keyCode);
-        }  else if (keyCode == KeyEvent.KEYCODE_ENTER) {
+        } else if (keyCode == KeyEvent.KEYCODE_ENTER) {
             String retStr;
             if (!mService.mDecInfo.isCandidatesListEmpty()) {
                 // 获取当前高亮的候选词

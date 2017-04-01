@@ -37,6 +37,9 @@ public class InputModeSwitcher {
     private static final int MODE_SKB_ALL_SYM = -5;
     private static final int MODE_SKB_PINYIN  = -6;//中文模式
 
+    private static final int TOGGLE_KEYCODE_PINYIN_1=103;
+    private static final int TOGGLE_KEYCODE_PINYIN_2=104;
+
     private static final int TOGGLE_ENTER_GO              = 7;
     private static final int TOGGLE_ENTER_SEARCH          = 8;
     private static final int TOGGLE_ENTER_SEND            = 9;
@@ -114,9 +117,8 @@ public class InputModeSwitcher {
         //todo:需要考虑在中文模式下切换到数字键盘时的符号为全角的
         if (mToggleStates.mQwerty && (mInputMode == INPUT_TYPE_ALL_EN) && (userKeyCode == 0)) { // 初始化英文键盘大小写.
             mKeyStates.add(mToggleStates.mQwertyUpperCase ? MODE_SKB_ENGLISH_UPPER : MODE_SKB_ENGLISH_LOWER);
-        } else if (mToggleStates.mQwerty && (mInputMode == INPUT_TYPE_PINYIN) && (userKeyCode == 0)) { // 初始化英文键盘大小写.
-            mKeyStates.add(mToggleStates.mQwertyPinyin ? MODE_SKB_PINYIN : MODE_SKB_ALL_EN);
-        }else if ((mToggleStates.mQwerty && USERDEF_KEYCODE_CASE_1 == userKeyCode)) { // 大小写转换.
+            mKeyStates.add(mToggleStates.mQwertyPinyin ? TOGGLE_KEYCODE_PINYIN_2 : TOGGLE_KEYCODE_PINYIN_1);
+        } else if ((mToggleStates.mQwerty && USERDEF_KEYCODE_CASE_1 == userKeyCode)) { // 大小写转换.
             mToggleStates.mQwertyUpperCase = !mToggleStates.mQwertyUpperCase;
             mKeyStates.add(mToggleStates.mQwertyUpperCase ? MODE_SKB_ENGLISH_UPPER : MODE_SKB_ENGLISH_LOWER);
         } else if (USERDEF_KEYCODE_PAGE == userKeyCode) { // 翻页.
@@ -137,7 +139,7 @@ public class InputModeSwitcher {
             //中文模式 新增:::by chankey
             OPENLOG.D(TAG, "MODE_SKB_PINYIN");
             mToggleStates.mQwertyPinyin = !mToggleStates.mQwertyPinyin;
-            mKeyStates.add(mToggleStates.mQwertyPinyin ? MODE_SKB_PINYIN : MODE_SKB_ALL_EN);
+            mKeyStates.add(mToggleStates.mQwertyPinyin ? TOGGLE_KEYCODE_PINYIN_2 : TOGGLE_KEYCODE_PINYIN_1);
         }
 
         // 回车的状态处理.

@@ -249,7 +249,7 @@ public class SoftKeyboardView extends View {
 	 * 所以使用了最简单的 行,列概念.<br>
 	 * 总比谷歌英文输入法（ASOP）的一维好.
 	 */
-	public boolean moveToNextKey(int direction) {
+	public boolean moveToNextKey(int direction, CandidatesContainer candidatesContainer, SkbContainer skbContainer, DecodingInfo decInfo) {
 		if (mSoftKeyboard == null) {
 			OPENLOG.E(TAG, "moveToNextKey mSoftKeyboard is null");
 			return false;
@@ -389,6 +389,16 @@ public class SoftKeyboardView extends View {
 			if (softKey != null) {
 				currentIndex = saveTSoftKey.index;
 				currentRow = saveTSoftKey.row;
+				//清除保存的下一个按键值,清除选中的键
+				int nRowNum = mSoftKeyboard.getRowNum();
+				for (int i=0;i<nRowNum;i++){
+					KeyRow nKeyRow = mSoftKeyboard.getKeyRowForDisplay(i);
+					List<SoftKey> nSoftKeys = nKeyRow.getSoftKeys();
+					for (int index = 0; index < nSoftKeys.size(); index++) {
+						SoftKey nSoftKey = nSoftKeys.get(index);
+						nSoftKey.cleanSaveNextTopSoftkey();
+					}
+				}
 				OPENLOG.D(TAG,"KEYCODE_DPAD_UP000"+currentRow);
 			} else {
 				softKey = mSoftKeyboard.getMoveUpSoftKey(mSoftKeyboard.getSelectRow() - 1, 0);
@@ -397,34 +407,42 @@ public class SoftKeyboardView extends View {
 				OPENLOG.D(TAG,"KEYCODE_DPAD_UP11"+currentRow);
 
 				if (mSoftKeyboard.isTBMove() && softKey == null) {
-					//todo:跳到candidateview上
-//					softKey = mSoftKeyboard.getMoveUpSoftKey(mSoftKeyboard.getRowNum() - 1,
-//							mSoftKeyboard.getSelectRow() + 1);
-//					currentIndex = mSoftKeyboard.getSelectIndex();
-//					currentRow = mSoftKeyboard.getSelectRow();
-//					OPENLOG.D(TAG,"KEYCODE_DPAD_UP22"+currentRow);
-//					/**
-//					 * 区域查找未找到的情况下.
-//					 */
-//					if (softKey == null) {
-//						currentRow--;
-//						OPENLOG.D(TAG,"KEYCODE_DPAD_UP33"+currentRow);
-//						if (currentRow < 0) {
-//							if (mSoftKeyboard.isTBMove()) {
-//								currentRow = (mSoftKeyboard.getRowNum() - 1);
-//							} else {
-//								currentRow = 0;
-//							}
-//						}
-//						// 防止重复刷新.
-//						if (softKey == null && currentRow != mSoftKeyboard.getSelectRow()) {
-//							OPENLOG.D(TAG,"KEYCODE_DPAD_UP44"+currentRow);
-//							keyRow = mSoftKeyboard.getKeyRowForDisplay(currentRow);
-//							softKeys = keyRow.getSoftKeys();
-//							currentIndex = Math.max(Math.min(currentIndex, softKeys.size() - 1), 0);
-//							softKey = softKeys.get(currentIndex);
-//						}
-//					}
+					if (null != candidatesContainer && candidatesContainer.isShown()
+							&& !decInfo.isCandidatesListEmpty()){
+						candidatesContainer.setCanProcess(true);
+						skbContainer.setCanProcess(false);
+						SoftKey nSelectSoftKey = mSoftKeyboard.getSelectSoftKey();
+						nSelectSoftKey.setKeySelected(false);
+						candidatesContainer.enableActiveHighlight(true);
+					}else{
+						softKey = mSoftKeyboard.getMoveUpSoftKey(mSoftKeyboard.getRowNum() - 1,
+								mSoftKeyboard.getSelectRow() + 1);
+						currentIndex = mSoftKeyboard.getSelectIndex();
+						currentRow = mSoftKeyboard.getSelectRow();
+						OPENLOG.D(TAG,"KEYCODE_DPAD_UP22"+currentRow);
+						/**
+						 * 区域查找未找到的情况下.
+						 */
+						if (softKey == null) {
+							currentRow--;
+							OPENLOG.D(TAG,"KEYCODE_DPAD_UP33"+currentRow);
+							if (currentRow < 0) {
+								if (mSoftKeyboard.isTBMove()) {
+									currentRow = (mSoftKeyboard.getRowNum() - 1);
+								} else {
+									currentRow = 0;
+								}
+							}
+							// 防止重复刷新.
+							if (softKey == null && currentRow != mSoftKeyboard.getSelectRow()) {
+								OPENLOG.D(TAG,"KEYCODE_DPAD_UP44"+currentRow);
+								keyRow = mSoftKeyboard.getKeyRowForDisplay(currentRow);
+								softKeys = keyRow.getSoftKeys();
+								currentIndex = Math.max(Math.min(currentIndex, softKeys.size() - 1), 0);
+								softKey = softKeys.get(currentIndex);
+							}
+						}
+					}
 				}
 				// 保存下个方向的按键.
 				if (softKey != null) {
